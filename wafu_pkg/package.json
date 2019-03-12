@@ -1,0 +1,29 @@
+{
+  "name": "wafu",
+  "version": "0.1.0",
+  "description": "Rust port of Fuse.js, compiled to WebAssembly",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heyimalex/wafu.git",
+    "directory": "wafu_pkg"
+  },
+  "keywords": [
+    "fuse",
+    "bitap",
+    "wasm",
+    "rust",
+    "fuzzy",
+    "text",
+    "search"
+  ],
+  "author": "Alex Guerra <alex@heyimalex.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^3.3.3333"
+  }
+}

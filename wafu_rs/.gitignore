@@ -1,0 +1,8 @@
+# rust
+/target
+**/*.rs.bk
+Cargo.lock
+
+# ignore pkg: this code is copied to wafu_pkg and shouldn't be committed
+/pkg
+

@@ -116,7 +116,7 @@ fn fuse_bitap_search(
         if score < best_score {
             best_score = score;
         }
-        if score < current_threshold {
+        if score <= current_threshold {
             current_threshold = score;
             is_match = true;
         }

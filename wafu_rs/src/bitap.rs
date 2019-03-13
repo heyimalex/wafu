@@ -198,6 +198,14 @@ impl UnicodePattern {
 
     pub fn search<'a>(&'a self, text: &'a str, k: usize) -> impl Iterator<Item = Match> + 'a {
         let mut r = vec![!1usize; k + 1];
+
+        // Initialize the arrays so that each error level starts with the
+        // appropriate number of characters already given: because of the
+        // possibility of inserts, we can start with the assumption that the
+        // first k characters are already correct.
+        for (k, r) in r.iter_mut().enumerate().skip(1) {
+            *r <<= k;
+        }
         return text.chars().enumerate().filter_map(move |(i, c)| {
             let mask = self.get_mask(c);
             let mut prev_parent = r[0];

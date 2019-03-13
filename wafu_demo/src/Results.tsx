@@ -44,6 +44,22 @@ export default function Results(props: {
 
 function PerformanceDifference(props: { wafu: number; fuse: number }) {
   const { wafu, fuse } = props;
+
+  if (fuse === 0) {
+    if (wafu === 0) {
+      return (
+        <React.Fragment>Last search was the same speed as fuse.</React.Fragment>
+      );
+    } else {
+      return (
+        <React.Fragment>
+          Last search was <span style={{ color: "red" }}>slower</span> than
+          fuse.
+        </React.Fragment>
+      );
+    }
+  }
+
   const diff = ((fuse - wafu) / fuse) * 100;
   const abs = Math.abs(diff).toFixed(2);
   if (abs == "0.00") {

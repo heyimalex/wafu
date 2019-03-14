@@ -33,7 +33,14 @@ export default function App() {
       </p>
       <h3>
         Options{" "}
-        <button onClick={toggleHidden}>{optionsHidden ? "+" : "-"}</button>
+        <button
+          role="switch"
+          aria-pressed={!optionsHidden}
+          aria-label={optionsHidden ? "Show options" : "Hide options"}
+          onClick={toggleHidden}
+        >
+          {optionsHidden ? "+" : "-"}
+        </button>
       </h3>
       {optionsHidden ? null : (
         <Options state={options} dispatch={optionsDispatch} />

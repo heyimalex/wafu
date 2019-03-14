@@ -131,6 +131,7 @@ function BoolInput(props: {
   return (
     <li>
       <input
+        aria-label={props.label}
         type="checkbox"
         checked={props.state[props.optkey]}
         onChange={onChange}
@@ -166,6 +167,7 @@ function NumericInput(props: {
   return (
     <li>
       <input
+        aria-label={props.label}
         type="number"
         value={props.state[props.optkey]}
         onChange={onChange}

@@ -23,12 +23,17 @@ export default function Results(props: {
   const w = useCachedResults(wafuSearcher, query);
   const f = useCachedResults(fuseSearcher, query);
 
+  const resultsEqual = w.serialized === f.serialized;
+
   return (
     <React.Fragment>
       <h2>Results</h2>
-      <p>
-        <PerformanceDifference wafu={w.duration} fuse={f.duration} />
-      </p>
+      <ul>
+        <li>
+          <PerformanceDifference wafu={w.duration} fuse={f.duration} />
+        </li>
+        <li>{resultsEqual ? SameResults : DifferentResults}</li>
+      </ul>
       <div
         style={{
           display: "flex",
@@ -41,6 +46,17 @@ export default function Results(props: {
     </React.Fragment>
   );
 }
+
+const SameResults = (
+  <React.Fragment>
+    Results were <span style={{ color: "green" }}>the same</span> as Fuse
+  </React.Fragment>
+);
+const DifferentResults = (
+  <React.Fragment>
+    Results were <span style={{ color: "red" }}>different</span> from Fuse
+  </React.Fragment>
+);
 
 function PerformanceDifference(props: { wafu: number; fuse: number }) {
   const { wafu, fuse } = props;

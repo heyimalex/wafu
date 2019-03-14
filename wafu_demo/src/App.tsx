@@ -15,6 +15,14 @@ export default function App() {
   const toggleHidden = React.useCallback(() => {
     setOptionsHidden(v => !v);
   }, [setOptionsHidden]);
+
+  // This is _kind of_ cheating because it papers over a difference between
+  // fuse and wafu; that trailing whitespace is considered an empty "token" by
+  // fuse. By removing trailing whitespace, we don't show this difference.
+  // It's done to make checking whether the outputs are exactly the same more
+  // stable; without it every space typed would show as "different", when
+  // really I only care about unexpected differences.
+  const trimmedQuery = query.trim();
   return (
     <div>
       <h1>wafu</h1>
@@ -37,7 +45,11 @@ export default function App() {
         value={query}
         onChange={e => setQuery(e.target.value)}
       />
-      <Results options={options} collection={defaultCollection} query={query} />
+      <Results
+        options={options}
+        collection={defaultCollection}
+        query={trimmedQuery}
+      />
     </div>
   );
 }

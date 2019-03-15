@@ -71,61 +71,52 @@ export const defaultOptions: Readonly<WafuOptions> = {
   matchAllTokens: false
 };
 
+// TextEncoder isn't showing up, so this is just providing the type definition.
+interface TextEncoder {
+  readonly encoding: string;
+  encode(input?: string): Uint8Array;
+}
+declare var TextEncoder: {
+  prototype: TextEncoder;
+  new (): TextEncoder;
+};
+
+const cachedTextEncoder = new TextEncoder();
+function jsonEncode(v: any): Uint8Array {
+  return cachedTextEncoder.encode(JSON.stringify(v));
+}
+
 export class Wafu<T> {
   private collection: ReadonlyArray<T>;
   private options: WafuOptions<T>;
   private fields: Field[];
-  private rsFields: RustField[];
-  private rsOptions: RustOptions;
+
+  // This is the constructor parameter for rust's Searcher object serialized
+  // as json in utf-8. It saves _some_ of the repeated work of crossing the
+  // rust/js barrier.
+  private cachedSearcherInput: Uint8Array;
 
   constructor(collection: T[], opts?: Partial<WafuOptions<T>>) {
     this.options = { ...(defaultOptions as WafuOptions<T>), ...opts };
     this.collection = collection;
     this.fields = buildFields(this.collection, this.options);
-    this.rsFields = buildRustFields(this.fields);
-    this.rsOptions = buildRustOptions(this.options);
+
+    this.cachedSearcherInput = jsonEncode({
+      fields: buildRustFields(this.fields),
+      options: buildRustOptions(this.options)
+    });
   }
 
   search(pattern: string, opts?: SearchOpts): WafuResult<T>[] {
     if (pattern === "" || this.fields.length === 0) {
       return [];
     }
-    if (!this.options.caseSensitive) {
-      pattern = pattern.toLowerCase();
-    }
+    const searchInput = buildRustSearchInput(pattern, opts, this.options);
 
-    // Here we're going to deviate from fuse a bit, only because fuse's
-    // solution is hard for me to implement and this shouldn't come up too
-    // often. When the pattern or any of the pattern tokens are longer than 32
-    // chars, just truncate to 32 chars. This is a limitation of bitap (kind
-    // of). Think more on this later, but avoids a runtime error for now.
-
-    let pattern_tokens: null | string[] = null;
-    if (this.options.tokenize) {
-      pattern_tokens = pattern
-        .split(this.options.tokenSeparator)
-        .filter(v => v.length > 0)
-        .map(s => truncateTo32Chars(s));
-    }
-
-    const input: RustSearchInput = {
-      pattern: truncateTo32Chars(pattern),
-      pattern_tokens,
-      limit: opts && typeof opts.limit === "number" ? opts.limit : null,
-      fields: this.rsFields,
-      options: this.rsOptions
-    };
     // @ts-ignore: Can't use a function that ts doesn't know about!
-    const rsResults = wasmSearch(input);
+    const rsResults = wasmSearch(this.cachedSearcherInput, searchInput);
     return buildJSResult(this.collection, this.fields, rsResults, this.options);
   }
-}
-
-function truncateTo32Chars(s: string): string {
-  const chars = Array.from(s);
-  if (chars.length < 31) return s;
-  const truncated = chars.slice(0, 30).join("");
-  return truncated;
 }
 
 // Field represents a searchable field inside of an item in the collection.
@@ -135,7 +126,7 @@ interface Field {
   // The original text before potentially converting to lowercase. We need to
   // keep this around for the matched indicies output.
   originalText: string;
-  // The text that was actually searched.
+  // The text that will actually be searched.
   text: string;
   // The "tokens" of the text.
   tokens?: string[];
@@ -146,7 +137,10 @@ interface Field {
   keyIndex?: number;
   // When getFn returns an array, this corresponds to the array index.
   arrayIndex?: number;
+  // Actual string that was passed as the key.
   key?: string;
+  // Weight that should be given to this field. This is derived from key, but
+  // denormalized here.
   weight: number;
 }
 
@@ -294,12 +288,58 @@ function buildRustFields(fields: Field[]): RustField[] {
   }));
 }
 
+// Passed in to create the Searcher.
+interface RustSearcherInput {
+  fields: RustField[];
+  options: RustOptions;
+}
+
 interface RustSearchInput {
   pattern: string;
   pattern_tokens: null | string[];
   limit: null | number;
-  fields: RustField[];
-  options: RustOptions;
+}
+
+function buildRustSearchInput(
+  pattern: string,
+  searchOpts: SearchOpts | undefined,
+  options: WafuOptions
+): RustSearchInput {
+  if (!options.caseSensitive) {
+    pattern = pattern.toLowerCase();
+  }
+
+  // Here we're going to deviate from fuse a bit, only because fuse's solution
+  // is hard for me to implement and this shouldn't come up too often. When
+  // the pattern or any of the pattern tokens are longer than 32 chars, just
+  // truncate to 32 chars. This is a limitation of bitap (kind of). Think more
+  // on this later, but avoids a runtime error for now.
+
+  let pattern_tokens: null | string[] = null;
+  if (options.tokenize) {
+    pattern_tokens = pattern
+      .split(options.tokenSeparator)
+      .filter(v => v.length > 0)
+      .map(s => truncateTo32Chars(s));
+  }
+
+  pattern = truncateTo32Chars(pattern);
+
+  return {
+    pattern,
+    pattern_tokens,
+    limit:
+      searchOpts && typeof searchOpts.limit === "number"
+        ? searchOpts.limit
+        : null
+  };
+}
+
+function truncateTo32Chars(s: string): string {
+  const chars = Array.from(s);
+  if (chars.length < 31) return s;
+  const truncated = chars.slice(0, 30).join("");
+  return truncated;
 }
 
 interface RustSearchResult {
@@ -313,6 +353,8 @@ interface RustMatchedIndices {
   indices: Array<[number, number]>;
 }
 
+// Takes the results from rust and combines them with the original collection
+// and fields to make the expected output.
 function buildJSResult<T>(
   collection: ReadonlyArray<T>,
   fields: Field[],

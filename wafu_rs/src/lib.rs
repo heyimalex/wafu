@@ -3,6 +3,7 @@ extern crate serde_derive;
 
 extern crate cfg_if;
 extern crate wasm_bindgen;
+extern crate serde_json;
 
 mod bitap;
 
@@ -41,15 +42,6 @@ pub struct Field {
     pub weight: f64,
 }
 
-#[derive(Deserialize)]
-pub struct SearchInput {
-    pub pattern: String,
-    pub pattern_tokens: Option<Vec<String>>,
-    pub limit: Option<usize>,
-    pub fields: Vec<Field>,
-    pub options: Options,
-}
-
 #[derive(Serialize)]
 pub struct SearchResult {
     pub item_index: usize,
@@ -63,13 +55,41 @@ pub struct MatchIndices {
     pub indices: Vec<(usize, usize)>,
 }
 
+// The following two structs are solely used for marshalling data to and from
+// javascript.
+
+#[derive(Deserialize)]
+pub struct SearcherInput {
+    pub fields: Vec<Field>,
+    pub options: Options,
+}
+
+#[derive(Deserialize)]
+pub struct SearchInput {
+    pub pattern: String,
+    pub pattern_tokens: Option<Vec<String>>,
+    pub limit: Option<usize>,
+}
+
 // Just trying to get this first iteration to work, we're using serde to pass
 // data back and forth, which is _probably_ very very slow but I want to get
 // this done :')
 #[wasm_bindgen(js_name = search)]
-pub fn wrapped_search(val: &JsValue) -> JsValue {
+pub fn search_json(srch: &[u8], val: &JsValue) -> JsValue {
+
+    let searcher_input: SearcherInput = serde_json::from_slice(srch).unwrap();
     let input: SearchInput = val.into_serde().unwrap();
-    let output = search(&input);
+
+    let searcher = Searcher{
+        fields: searcher_input.fields,
+        options: searcher_input.options,
+    };
+
+    let output = searcher.search(
+        &input.pattern,
+        &input.pattern_tokens,
+        input.limit,
+    );
     return JsValue::from_serde(&output).unwrap();
 }
 
@@ -85,6 +105,7 @@ struct ItemScore {
 }
 
 impl ItemScore {
+    #[inline]
     fn new(item_index: usize) -> ItemScore {
         ItemScore {
             item_index,
@@ -94,6 +115,7 @@ impl ItemScore {
         }
     }
 
+    #[inline]
     fn add_score(&mut self, score: f64, weight: f64) {
         // Why it's done this way I truly do not understand, but it matches
         // fuse's computeScore logic and we're making a drop in replacement.
@@ -122,24 +144,66 @@ impl ItemScore {
     }
 }
 
-fn search(input: &SearchInput) -> Vec<SearchResult> {
-    let searchers = create_searchers(&input.pattern, &input.pattern_tokens, &input.options);
+#[wasm_bindgen]
+pub struct Searcher {
+    fields: Vec<Field>,
+    options: Options,
+}
+
+#[wasm_bindgen]
+impl Searcher {
+
+    #[wasm_bindgen(constructor)]
+    pub fn new_from_json(val: &JsValue) -> Searcher {
+        let input: SearcherInput = val.into_serde().unwrap();
+        return Searcher::new(input.fields, input.options);
+    }
+
+    #[wasm_bindgen(js_name = search)]
+    pub fn search_json(&self, val: &JsValue) -> JsValue {
+        let input: SearchInput = val.into_serde().unwrap();
+        let output = self.search(
+            &input.pattern,
+            &input.pattern_tokens,
+            input.limit,
+        );
+        return JsValue::from_serde(&output).unwrap();
+    }
+}
+
+impl Searcher {
+
+    pub fn new(fields: Vec<Field>, options: Options) -> Searcher {
+        Searcher{
+            fields: fields,
+            options: options,
+        }
+    }
+
+    pub fn search(
+        &self,
+        pattern: &str,
+        pattern_tokens: &Option<Vec<String>>,
+        limit: Option<usize>,
+    ) -> Vec<SearchResult> {
+        let searchers = create_bitap_searchers(pattern, pattern_tokens, &self.options);
 
     let mut item_scores: Vec<ItemScore> = Vec::new();
 
-    // Mapping from item_index => item_scores[index]. Instead of keeping
+    // Mapping from Field.item_index => item_scores[index]. Instead of keeping
     // references to the actual ItemScore, we just track the index in
-    // item_scores. This saves us from needing to clone anything.
+    // item_scores. This saves us from needing to clone anything when this is
+    // ultimately flattened into a vec.
     let mut item_score_map: HashMap<usize, usize> = HashMap::new();
 
     // Analyze all fields, tracking those that matched.
-    for (i, field) in input.fields.iter().enumerate() {
+    for (i, field) in self.fields.iter().enumerate() {
         let score = analyze(
             &searchers,
             &field.text,
             &field.tokens,
-            input.options.tokenize,
-            input.options.match_all_tokens,
+            self.options.tokenize,
+            self.options.match_all_tokens,
         );
         if let Some(score) = score {
             let weight = field.weight;
@@ -168,10 +232,12 @@ fn search(input: &SearchInput) -> Vec<SearchResult> {
         }
     }
 
-    // Sort by best score with ties broken by item_index. Even if should_sort
-    // is false, sort by the original item_index so that output is stable.
-    if input.options.should_sort {
-        // Sort by best score,
+    // Sort by best score with ties broken by item_index.
+    //
+    // Even if should_sort is false, sort by the original item_index so that
+    // output is stable. This _should_ already be the case, but let's do it
+    // anyway.
+    if self.options.should_sort {
         item_scores.sort_by(|a, b| {
             let a_score = a.get_score();
             let b_score = b.get_score();
@@ -185,14 +251,14 @@ fn search(input: &SearchInput) -> Vec<SearchResult> {
         item_scores.sort_by(|a, b| a.item_index.cmp(&b.item_index));
     }
 
-    let take_this_many = input.limit.unwrap_or(item_scores.len());
+    let take_this_many = limit.unwrap_or(item_scores.len());
     let results: Vec<SearchResult> = item_scores
         .iter()
         .take(take_this_many)
         .map(|s| SearchResult {
             item_index: s.item_index,
             score: s.get_score(),
-            matches: if !input.options.include_matches {
+            matches: if !self.options.include_matches {
                 None
             } else {
                 Some(
@@ -200,8 +266,8 @@ fn search(input: &SearchInput) -> Vec<SearchResult> {
                         .iter()
                         .filter_map(|field_index| {
                             let indices = searchers.full.get_matched_indices(
-                                &input.fields.get(*field_index).unwrap().text,
-                                input.options.min_match_char_length,
+                                &self.fields.get(*field_index).unwrap().text,
+                                self.options.min_match_char_length,
                             );
                             // Don't inclue fields where none of the matches
                             // were long enough to pass min_match_char_length.
@@ -221,14 +287,16 @@ fn search(input: &SearchInput) -> Vec<SearchResult> {
         .collect();
 
     return results;
+    }
 }
 
-struct Searchers {
+
+struct BitapSearchers {
     full: bitap::Searcher,
     token: Option<Vec<bitap::Searcher>>,
 }
 
-fn create_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Options) -> Searchers {
+fn create_bitap_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Options) -> BitapSearchers {
     let full = bitap::Searcher::new(pattern, opts.location, opts.distance, opts.threshold);
     let token = tokens.as_ref().map(|tokens| {
         tokens
@@ -236,7 +304,7 @@ fn create_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Options)
             .map(|token| bitap::Searcher::new(token, opts.location, opts.distance, opts.threshold))
             .collect()
     });
-    return Searchers {
+    return BitapSearchers {
         full: full,
         token: token,
     };
@@ -247,7 +315,7 @@ fn create_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Options)
 //
 // This algorithm is pretty convoluted, but it's based on what fuse does.
 fn analyze(
-    searchers: &Searchers,
+    searchers: &BitapSearchers,
     text: &str,
     tokens: &Option<Vec<String>>,
     tokenize: bool,

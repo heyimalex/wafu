@@ -13,6 +13,7 @@ cfg-if = "0.1.2"
 wasm-bindgen = { version = "=0.2.34", features = ["serde-serialize"] }
 serde = "^1.0.59"
 serde_derive = "^1.0.59"
+serde_json = "1.0"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default

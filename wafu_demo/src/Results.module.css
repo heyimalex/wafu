@@ -1,0 +1,49 @@
+.Result {
+  border: 1px solid #ddd;
+  border-bottom-width: 0;
+  padding: 0 30px;
+}
+
+.Result:last-child {
+  border-bottom-width: 1px;
+}
+
+.green {
+  color: #28a745;
+}
+
+.yellow {
+  color: #ffc107;
+}
+
+.red {
+  color: #dc3545;
+}
+
+.blue {
+  color: #007bff;
+}
+
+.muted {
+  color: #6c757d;
+}
+
+.red_bold {
+  composes: red;
+  font-weight: bold;
+}
+
+.green_bold {
+  composes: green;
+  font-weight: bold;
+}
+
+.yellow_bold {
+  composes: yellow;
+  font-weight: bold;
+}
+
+.blue_bold {
+  composes: blue;
+  font-weight: bold;
+}

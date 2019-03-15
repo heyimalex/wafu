@@ -5,7 +5,7 @@ import { WafuOptions, defaultOptions as defaultWafuOptions } from "wafu";
 // The default options we're actually going to use in the ui.
 const defaultOptions: WafuOptions = {
   ...defaultWafuOptions,
-  keys: ["title", "author.firstName"],
+  keys: ["name", "full_name"],
   tokenize: true
 };
 
@@ -293,74 +293,80 @@ export function Options(props: {
   dispatch: React.Dispatch<Action>;
 }) {
   return (
-    <ul>
-      <BoolInput
-        label={"Case sensitive"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"caseSensitive"}
-      />
-      <BoolInput
-        label={"Sort"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"shouldSort"}
-      />
-      <BoolInput
-        label={"Tokenize"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"tokenize"}
-      />
-      <BoolInput
-        label={"Match all tokens"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"matchAllTokens"}
-      />
-      <BoolInput
-        label={"Include matches"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"includeMatches"}
-      />
-      <NumericInput
-        label={"Threshold"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"threshold"}
-        min={0}
-        max={1}
-        step={0.1}
-      />
-      <NumericInput
-        label={"Distance"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"distance"}
-        min={0}
-        max={1000}
-        step={1}
-      />
-      <NumericInput
-        label={"Location"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"location"}
-        min={0}
-        max={1000}
-        step={1}
-      />
-      <NumericInput
-        label={"Min match char length"}
-        state={props.state}
-        dispatch={props.dispatch}
-        optkey={"minMatchCharLength"}
-        min={1}
-        max={100}
-        step={1}
-      />
-      <KeysList state={props.state} dispatch={props.dispatch} />
-    </ul>
+    <React.Fragment>
+      <p>
+        Want to know what these options do? Read the Fuse documentation to find
+        out ☺
+      </p>
+      <ul>
+        <BoolInput
+          label={"Case sensitive"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"caseSensitive"}
+        />
+        <BoolInput
+          label={"Sort"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"shouldSort"}
+        />
+        <BoolInput
+          label={"Tokenize"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"tokenize"}
+        />
+        <BoolInput
+          label={"Match all tokens"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"matchAllTokens"}
+        />
+        <BoolInput
+          label={"Include matches"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"includeMatches"}
+        />
+        <NumericInput
+          label={"Threshold"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"threshold"}
+          min={0}
+          max={1}
+          step={0.1}
+        />
+        <NumericInput
+          label={"Distance"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"distance"}
+          min={0}
+          max={1000}
+          step={1}
+        />
+        <NumericInput
+          label={"Location"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"location"}
+          min={0}
+          max={1000}
+          step={1}
+        />
+        <NumericInput
+          label={"Min match char length"}
+          state={props.state}
+          dispatch={props.dispatch}
+          optkey={"minMatchCharLength"}
+          min={1}
+          max={100}
+          step={1}
+        />
+        <KeysList state={props.state} dispatch={props.dispatch} />
+      </ul>
+    </React.Fragment>
   );
 }

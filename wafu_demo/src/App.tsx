@@ -1,10 +1,9 @@
 import React, { Component } from "react";
 import Fuse from "fuse.js";
-import stringify from "json-stable-stringify";
 
 import { Wafu, WafuOptions, defaultOptions as defaultWafuOptions } from "wafu";
-import { defaultCollection } from "./collection";
 
+import { packages } from "./rust-packages";
 import { Options, useOptionsReducer } from "./Options";
 import Results from "./Results";
 
@@ -27,9 +26,9 @@ export default function App() {
     <div>
       <h1>wafu</h1>
       <p>
-        Rust port of <a href="https://fusejs.io/">fuse.js</a>, compiled to
-        webassembly.{" "}
-        <a href="https://github.com/heyimalex/wafu">Check it out on github.</a>
+        Rust port of <a href="https://fusejs.io/">Fuse.js</a>, the fuzzy
+        searching library, compiled to WebAssembly.{" "}
+        <a href="https://github.com/heyimalex/wafu">Check it out on github!</a>
       </p>
       <h3>
         Options{" "}
@@ -45,18 +44,17 @@ export default function App() {
       {optionsHidden ? null : (
         <Options state={options} dispatch={optionsDispatch} />
       )}
-      <h3>Query</h3>
-      <p>Enter your query below.</p>
+      <h3>Try me!</h3>
+      <p>
+        Search through some popular rust projects by entering your query below.
+      </p>
       <input
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
       />
-      <Results
-        options={options}
-        collection={defaultCollection}
-        query={trimmedQuery}
-      />
+
+      <Results options={options} collection={packages} query={trimmedQuery} />
     </div>
   );
 }

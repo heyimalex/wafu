@@ -8,9 +8,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 
   padding: 15px 30px;
+  max-width: 700px;
+  margin: auto 0;
+  /* I hate scrollbar flashes :') */
+  overflow-y: scroll;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
+}
+
+input[type="text"] {
+  font-size: 16px;
 }

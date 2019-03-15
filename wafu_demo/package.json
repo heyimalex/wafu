@@ -8,7 +8,6 @@
     "@types/react": "16.8.7",
     "@types/react-dom": "16.8.2",
     "fuse.js": "^3.4.4",
-    "json-stable-stringify": "^1.0.1",
     "react": "^16.8.4",
     "react-dom": "^16.8.4",
     "react-scripts": "2.1.8",

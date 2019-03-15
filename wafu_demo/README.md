@@ -6,9 +6,7 @@ Unfortunately because of [spectre mitigations](https://developer.mozilla.org/en-
 
 ## TODO
 
-- Make the collection modifiable.
 - Make keys easier to use.
 - Make it pretty :')
 - Detect wasm support, display an error on failure?
 - Display loading screen.
-- Detect whether performance metrics are being rounded because of the issue above and hide them if they are.

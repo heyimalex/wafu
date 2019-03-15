@@ -41,24 +41,30 @@ The options are the same as Fuse, with some minor differences as documented belo
 
 The story for bundling is changing quickly, but it _looks_ like webpack 4+ has native support for importing wasm if you do it in an async import block. Check the demo folder for an example project, but basically if you put a module that _uses_ wafu behind an async import, you can go about your life as if loading is synchronous.
 
-Node support is coming at some point, but for now requires a bundler to translate the imports.
+Node support may be coming at some point, but for now requires a bundler to translate the imports.
 
 ## Differences from Fuse
 
-- Currently the results returned aren't exactly the same, though they're pretty close. Need to do more work here uncovering edge cases.
-- Fuse's `id` is removed. It's not hard for end users to do the same thing, and it simplifies the typescript types.
-- Fuse's `includeScore` is removed. wafu will **always** includes the score. Because of this, output is always nested into an object with `item` and `score` keys.
-- Fuse's `findAllMatches` is removed, and wafu behaves as if it's always set to `true`. This simplifies the internal bitap code a little.
-- Fuse's `maxPatternLength` is removed. It's buggy in Fuse anyway, and pretty much has to be 32.
+I'm closing in on output being exactly the same between Fuse and wafu! Two well known differences:
+
+- Fuse treats leading and trailing whitespace as separate "tokens", but wafu filters them out.
+- Behavior for patterns longer than 32 chars is different from Fuse. I haven't decided exactly what the plan is here, but it should be rare enough that it's not a huge issue.
+
+If you notice any other cases where output diverges in ways other than minor score differences please file an issue!
+
+### Other differences
+
+- The output of wafu is always structured as `{ item: T, score: number, matches?: WafuMatch[] }`, which means that Fuse's `id` and `includeScore` options are removed as the item is always the original item and the score is always included. It's trivial for end users to achieve the same end results as these options, and it simplifies the typescript types significantly.
+- Fuse's `findAllMatches` option is removed, and wafu behaves as if it's always set to `true`. This simplifies the internal bitap code a little.
+- Fuse's `maxPatternLength` option is removed. It's buggy in Fuse and essentially has to be set to 32.
 - Fuse's `sortFn` is removed. Hopefully this isn't used much, but the main reason was I couldn't think of a nice way to do it!
-- Behavior for patterns or tokens longer than 32 chars is _very_ different from Fuse. Neither one is particularly good, so let's just hope this doesn't happen too often. Will need to do some more work here to define this better.
-- Not sure how well Fuse does, but wafu should do a good job of handling unicode. Grapheme clusters are not taken into account. If you've got weird text you should probably normalize it first.
+- Not sure how well Fuse does, but wafu should do a good job of handling unicode. Grapheme clusters are not taken into account; if you've got weird text you should probably normalize it first.
 
 ## Performance
 
-This initial release was written in the most straightforward way I could think of, so there is a lot of low hanging fruit in terms of performance improvements. Nevertheless, wafu appears to be faster than Fuse out of the box!
+This initial release was written in the most straightforward way I could think of, so there is a lot of low hanging fruit in terms of improvements. Nevertheless, wafu appears to be faster than Fuse out of the box!
 
-However, the compiled wasm code _alone_ is currently 176KB to Fuse's 12KB. This should improve in the future, but for now that makes this project kind of a toy!
+However, the compiled wasm code _alone_ is currently 216KB to Fuse's 12KB. This should improve in the future, but for now that makes this project kind of a toy!
 
 ## Development
 

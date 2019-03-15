@@ -5,7 +5,6 @@ import { WafuOptions, defaultOptions as defaultWafuOptions } from "wafu";
 // The default options we're actually going to use in the ui.
 const defaultOptions: WafuOptions = {
   ...defaultWafuOptions,
-  includeMatches: true,
   keys: ["title", "author.firstName"],
   tokenize: true
 };

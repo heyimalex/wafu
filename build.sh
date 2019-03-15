@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 echo 'Clearing wafu_pkg/dist...'
-rm -rf wafu_pkg/dist
+rm -rf wafu_pkg/dist/*
 
 echo 'Building rust code...'
 (cd wafu_rs && wasm-pack build)

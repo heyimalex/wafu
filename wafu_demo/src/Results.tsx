@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import Fuse from "fuse.js";
 import stringify from "json-stable-stringify";
 
-import { Wafu, WafuOptions } from "wafu";
+import { WafuUnsafe, WafuOptions } from "wafu";
 
 export default function Results(props: {
   query: string;
@@ -12,8 +12,14 @@ export default function Results(props: {
   const { query, collection, options } = props;
 
   const wafuSearcher = useMemo(() => {
-    return new Wafu(collection, options);
+    return new WafuUnsafe(collection, options);
   }, [collection, options]);
+  useEffect(() => {
+    // Free on unmount.
+    return () => {
+      wafuSearcher.free();
+    };
+  }, [wafuSearcher]);
 
   const fuseSearcher = useMemo(() => {
     const fuseOptions = convertToFuseOptions(options);

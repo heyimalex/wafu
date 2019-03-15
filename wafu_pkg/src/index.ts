@@ -1,7 +1,7 @@
 import { deepValue } from "./utils/deepValue";
 
 // @ts-ignore: This will be placed in dist on build.
-import { search as wasmSearch } from "./wafu";
+import { search as wasmSearch, Searcher as WasmSearcher } from "./wafu";
 
 export interface WafuOptions<T = any> {
   // Indicates whether comparisons should be case sensitive.
@@ -116,6 +116,45 @@ export class Wafu<T> {
     // @ts-ignore: Can't use a function that ts doesn't know about!
     const rsResults = wasmSearch(this.cachedSearcherInput, searchInput);
     return buildJSResult(this.collection, this.fields, rsResults, this.options);
+  }
+}
+
+// Similar to the base Wafu, but owns an actual rust Searcher. Unsafe because
+// users can potentially leak memory if they don't free, so I'm keeping this
+// private for now.
+export class WafuUnsafe<T> {
+  private collection: ReadonlyArray<T>;
+  private options: WafuOptions<T>;
+  private fields: Field[];
+
+  private searcher: any;
+
+  constructor(collection: T[], opts?: Partial<WafuOptions<T>>) {
+    this.options = { ...(defaultOptions as WafuOptions<T>), ...opts };
+    this.collection = collection;
+    this.fields = buildFields(this.collection, this.options);
+
+    // @ts-ignore: Can't use a function that ts doesn't know about!
+    this.searcher = new WasmSearcher({
+      fields: buildRustFields(this.fields),
+      options: buildRustOptions(this.options)
+    });
+  }
+
+  search(pattern: string, opts?: SearchOpts): WafuResult<T>[] {
+    if (pattern === "" || this.fields.length === 0) {
+      return [];
+    }
+    const searchInput = buildRustSearchInput(pattern, opts, this.options);
+
+    // @ts-ignore: Can't use a function that ts doesn't know about!
+    const rsResults = this.searcher.search(searchInput);
+    return buildJSResult(this.collection, this.fields, rsResults, this.options);
+  }
+
+  free() {
+    this.searcher.free();
+    this.searcher = null;
   }
 }
 

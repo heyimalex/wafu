@@ -1,6 +1,6 @@
 {
   "name": "wafu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Rust port of Fuse.js, compiled to WebAssembly",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

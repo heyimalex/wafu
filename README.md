@@ -55,6 +55,7 @@ If you notice any other cases where output diverges in ways other than minor sco
 ### Other differences
 
 - The output of wafu is always structured as `{ item: T, score: number, matches?: WafuMatch[] }`, which means that Fuse's `id` and `includeScore` options are removed as the item is always the original item and the score is always included. It's trivial for end users to achieve the same end results as these options, and it simplifies the typescript types significantly.
+- Fuse will return the index in place of the item when the original collection is `string[]`. wafu returns the actual string, because why would you do it the other way.
 - Fuse's `findAllMatches` option is removed, and wafu behaves as if it's always set to `true`. This simplifies the internal bitap code a little.
 - Fuse's `maxPatternLength` option is removed. It's buggy in Fuse and essentially has to be set to 32.
 - Fuse's `sortFn` is removed. Hopefully this isn't used much, but the main reason was I couldn't think of a nice way to do it!

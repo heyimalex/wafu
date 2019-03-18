@@ -82,10 +82,14 @@ The results returned from Fuse and wafu, given the same options and collection, 
 
 ## Performance
 
-This initial release was written in the most straightforward way I could think of, so there is a lot of low hanging fruit in terms of improvements. Nevertheless, wafu appears to be _at least_ twice as fast as Fuse out of the box!
+This initial release was written in the most straightforward way I could think of, so there is a lot of low hanging fruit in terms of improvements. Nevertheless, wafu appears to be _at least_ twice as fast as Fuse out of the box in firefox!
 
 However, the compiled wasm code _alone_ is currently 216KB to Fuse's 12KB. This should improve in the future, but for now, that makes this project kind of a toy ☺
 
 ## Development
 
 Requires [rust](https://www.rust-lang.org/), [wasm-pack](https://github.com/rustwasm/wasm-pack) (currently using v0.6.0), [node](https://nodejs.org/en/), and npm to build. I didn't have a great plan when I was structuring this package, but the rust code is in `wafu_rs`, the typescript code is in `wafu_pkg`, and the demo site code is in `wafu_demo`. The `build.sh` script builds everything, and also links wafu into the demo node modules.
+
+### Project Goals
+
+I'm not trying to make the world's best fuzzy search library. This is first and foremost a port of Fuse. I want it to potentially be a drop in replacement for people who _already_ use Fuse. Thats all!

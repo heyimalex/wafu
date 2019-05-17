@@ -35,7 +35,7 @@ pub struct Searcher {
 
 impl Searcher {
     pub fn new(
-        pattern: &str,
+        pattern: &Vec<char>,
         expected_location: usize,
         distance: usize,
         threshold: f64,
@@ -49,7 +49,7 @@ impl Searcher {
         };
     }
 
-    pub fn search(&self, text: &str) -> SearchResult {
+    pub fn search(&self, text: &Vec<char>) -> SearchResult {
         fuse_bitap_search(
             text,
             &self.pattern,
@@ -62,22 +62,22 @@ impl Searcher {
     // Returns true if the passed text is definitely not a match. Checks
     // whether any of the characters in the pattern appear in the source text.
     // Kind of a fast pre-check before we do the full bitap search.
-    pub fn definitely_does_not_match(&self, text: &str) -> bool {
-        for c in text.chars() {
-            if self.pattern.contains_char(c) {
+    pub fn definitely_does_not_match(&self, text: &Vec<char>) -> bool {
+        for c in text {
+            if self.pattern.contains_char(*c) {
                 return false
             }
         }
         return true
     }
 
-    pub fn get_matched_indices(&self, text: &str, min_match_char_length: usize) -> Vec<(usize, usize)> {
+    pub fn get_matched_indices(&self, text: &Vec<char>, min_match_char_length: usize) -> Vec<(usize, usize)> {
         return matched_indices(text, &self.pattern, min_match_char_length);
     }
 }
 
 fn fuse_bitap_search(
-    text: &str,
+    text: &Vec<char>,
     pattern: &UnicodePattern,
     expected_location: usize,
     distance: usize,
@@ -101,7 +101,7 @@ fn fuse_bitap_search(
 
     // Reverse the text, as laid out in the top level comment. Will optimize later :')
     let text_reversed = reverse_string(text);
-    let text_len = text.chars().count();
+    let text_len = text.len();
 
     for m in pattern.search(&text_reversed, max_error_count) {
         // Un-reverse the match index.
@@ -136,8 +136,8 @@ fn fuse_bitap_search(
 }
 
 // This is a hacky error prone way to reverse a string but... whatever.
-pub fn reverse_string(s: &str) -> String {
-    s.chars().rev().collect::<String>()
+pub fn reverse_string(s: &Vec<char>) -> Vec<char> {
+    s.iter().rev().cloned().collect()
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -160,25 +160,24 @@ impl UnicodePattern {
     /// Compiles the search pattern. An error will be returned if the pattern
     /// is empty, or if the pattern is longer than the system word size minus
     /// one.
-    pub fn new(pattern: &str) -> Result<UnicodePattern, &'static str> {
-        let mut length = 0;
-        let mut masks: HashMap<char, usize> = HashMap::new();
-        for (i, c) in pattern.chars().enumerate() {
-            length += 1;
-            match masks.get_mut(&c) {
-                Some(mask) => {
-                    *mask &= !(1usize << i);
-                }
-                None => {
-                    masks.insert(c, !0usize & !(1usize << i));
-                }
-            };
-        }
+    pub fn new(pattern: &Vec<char>) -> Result<UnicodePattern, &'static str> {
+        let mut length = pattern.len();
         if length == 0 {
             return Err("pattern must not be empty");
         }
         if length >= mem::size_of::<usize>() * 8 - 1 {
             return Err("invalid pattern length");
+        }
+        let mut masks: HashMap<char, usize> = HashMap::new();
+        for (i, c) in pattern.iter().enumerate() {
+            match masks.get_mut(&c) {
+                Some(mask) => {
+                    *mask &= !(1usize << i);
+                }
+                None => {
+                    masks.insert(*c, !0usize & !(1usize << i));
+                }
+            };
         }
         return Ok(UnicodePattern { length, masks });
     }
@@ -196,7 +195,7 @@ impl UnicodePattern {
         return self.masks.contains_key(&c);
     }
 
-    pub fn search<'a>(&'a self, text: &'a str, k: usize) -> impl Iterator<Item = Match> + 'a {
+    pub fn search<'a>(&'a self, text: &'a Vec<char>, k: usize) -> impl Iterator<Item = Match> + 'a {
         let mut r = vec![!1usize; k + 1];
 
         // Initialize the arrays so that each error level starts with the
@@ -206,8 +205,8 @@ impl UnicodePattern {
         for (k, r) in r.iter_mut().enumerate().skip(1) {
             *r <<= k;
         }
-        return text.chars().enumerate().filter_map(move |(i, c)| {
-            let mask = self.get_mask(c);
+        return text.iter().enumerate().filter_map(move |(i, c)| {
+            let mask = self.get_mask(*c);
             let mut prev_parent = r[0];
             r[0] |= mask;
             r[0] <<= 1;
@@ -255,7 +254,7 @@ fn calculate_score(
 }
 
 pub fn matched_indices(
-    text: &str,
+    text: &Vec<char>,
     pattern: &UnicodePattern,
     min_match_char_length: usize,
 ) -> Vec<(usize, usize)> {
@@ -263,9 +262,9 @@ pub fn matched_indices(
 
     let mut start: Option<usize> = None;
     let mut text_len = 0;
-    for (i, c) in text.chars().enumerate() {
+    for (i, c) in text.iter().enumerate() {
         text_len += 1;
-        let is_match = pattern.contains_char(c);
+        let is_match = pattern.contains_char(*c);
         match (is_match, start) {
             (true, None) => {
                 start = Some(i);
@@ -293,14 +292,18 @@ pub fn matched_indices(
 mod tests {
     use super::*;
 
+    fn text_to_chars(s: &str) -> Vec<char> {
+        s.chars().collect()
+    }
+
     #[test]
     fn text_reversed_match_position() {
-        let pattern = "abc";
-        let text = "----abc";
-        let text_len = text.chars().count();
-        let matched = UnicodePattern::new(&reverse_string(pattern))
+        let pattern = text_to_chars("abc");
+        let text = text_to_chars("----abc");
+        let text_len = text.len();
+        let matched = UnicodePattern::new(&reverse_string(&pattern))
             .unwrap()
-            .search(&reverse_string(text), 0)
+            .search(&reverse_string(&text), 0)
             .map(|m| text_len - 1 - m.match_index)
             .collect::<Vec<_>>();
         assert_eq!(matched, vec![4]);
@@ -308,8 +311,8 @@ mod tests {
 
     #[test]
     fn test_matched_indices() {
-        let pattern = UnicodePattern::new("a").unwrap();
-        let text = "aaa a aa";
+        let pattern = UnicodePattern::new(&text_to_chars("a")).unwrap();
+        let text = text_to_chars("aaa a aa");
         assert_eq!(
             matched_indices(&text, &pattern, 1),
             vec![(0, 2), (4, 4), (6, 7)]
@@ -317,7 +320,7 @@ mod tests {
         assert_eq!(matched_indices(&text, &pattern, 2), vec![(0, 2), (6, 7)]);
         assert_eq!(matched_indices(&text, &pattern, 3), vec![(0, 2)]);
         assert_eq!(matched_indices(&text, &pattern, 4), vec![]);
-        let text = " aa a aaa ";
+        let text = text_to_chars(" aa a aaa ");
         assert_eq!(
             matched_indices(&text, &pattern, 1),
             vec![(1, 2), (4, 4), (6, 8)]
@@ -326,7 +329,7 @@ mod tests {
         assert_eq!(matched_indices(&text, &pattern, 3), vec![(6, 8)]);
         assert_eq!(matched_indices(&text, &pattern, 4), vec![]);
 
-        let text = "";
+        let text = text_to_chars("");
         assert_eq!(matched_indices(&text, &pattern, 0), vec![]);
     }
 }

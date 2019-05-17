@@ -42,6 +42,13 @@ pub struct Field {
     pub weight: f64,
 }
 
+pub struct FieldChars {
+    pub text: Vec<char>,
+    pub tokens: Option<Vec<Vec<char>>>,
+    pub item_index: usize,
+    pub weight: f64,
+}
+
 #[derive(Serialize)]
 pub struct SearchResult {
     pub item_index: usize,
@@ -80,14 +87,11 @@ pub fn search_json(srch: &[u8], val: &JsValue) -> JsValue {
     let searcher_input: SearcherInput = serde_json::from_slice(srch).unwrap();
     let input: SearchInput = val.into_serde().unwrap();
 
-    let searcher = Searcher{
-        fields: searcher_input.fields,
-        options: searcher_input.options,
-    };
+    let searcher = Searcher::new(searcher_input.fields, searcher_input.options);
 
     let output = searcher.search(
-        &input.pattern,
-        &input.pattern_tokens,
+        &input.pattern.chars().collect(),
+        &input.pattern_tokens.map(|tokens| tokens.iter().map(|token| token.chars().collect()).collect()),
         input.limit,
     );
     return JsValue::from_serde(&output).unwrap();
@@ -146,7 +150,7 @@ impl ItemScore {
 
 #[wasm_bindgen]
 pub struct Searcher {
-    fields: Vec<Field>,
+    fields: Vec<FieldChars>,
     options: Options,
 }
 
@@ -163,8 +167,8 @@ impl Searcher {
     pub fn search_json(&self, val: &JsValue) -> JsValue {
         let input: SearchInput = val.into_serde().unwrap();
         let output = self.search(
-            &input.pattern,
-            &input.pattern_tokens,
+            &input.pattern.chars().collect(),
+            &input.pattern_tokens.map(|tokens| tokens.iter().map(|token| token.chars().collect()).collect()),
             input.limit,
         );
         return JsValue::from_serde(&output).unwrap();
@@ -175,22 +179,27 @@ impl Searcher {
 
     pub fn new(fields: Vec<Field>, options: Options) -> Searcher {
         Searcher{
-            fields: fields,
+            fields: fields.into_iter().map(|f| FieldChars{
+                text: f.text.chars().collect(),
+                tokens: f.tokens.map(|tokens| tokens.iter().map(|token| token.chars().collect()).collect()),
+                item_index: f.item_index,
+                weight: f.weight,
+            }).collect(),
             options: options,
         }
     }
 
     pub fn search(
         &self,
-        pattern: &str,
-        pattern_tokens: &Option<Vec<String>>,
+        pattern: &Vec<char>,
+        pattern_tokens: &Option<Vec<Vec<char>>>,
         limit: Option<usize>,
     ) -> Vec<SearchResult> {
         let searchers = create_bitap_searchers(pattern, pattern_tokens, &self.options);
 
     let mut item_scores: Vec<ItemScore> = Vec::new();
 
-    // Mapping from Field.item_index => item_scores[index]. Instead of keeping
+    // Mapping from FieldChars.item_index => item_scores[index]. Instead of keeping
     // references to the actual ItemScore, we just track the index in
     // item_scores. This saves us from needing to clone anything when this is
     // ultimately flattened into a vec.
@@ -296,7 +305,7 @@ struct BitapSearchers {
     token: Option<Vec<bitap::Searcher>>,
 }
 
-fn create_bitap_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Options) -> BitapSearchers {
+fn create_bitap_searchers(pattern: &Vec<char>, tokens: &Option<Vec<Vec<char>>>, opts: &Options) -> BitapSearchers {
     let full = bitap::Searcher::new(pattern, opts.location, opts.distance, opts.threshold);
     let token = tokens.as_ref().map(|tokens| {
         tokens
@@ -316,8 +325,8 @@ fn create_bitap_searchers(pattern: &str, tokens: &Option<Vec<String>>, opts: &Op
 // This algorithm is pretty convoluted, but it's based on what fuse does.
 fn analyze(
     searchers: &BitapSearchers,
-    text: &str,
-    tokens: &Option<Vec<String>>,
+    text: &Vec<char>,
+    tokens: &Option<Vec<Vec<char>>>,
     tokenize: bool,
     match_all_tokens: bool,
 ) -> Option<f64> {

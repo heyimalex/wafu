@@ -30,5 +30,6 @@
   "devDependencies": {
     "@types/json-stable-stringify": "^1.0.32",
     "react-app-rewired": "^2.1.0"
-  }
+  },
+  "homepage": "."
 }

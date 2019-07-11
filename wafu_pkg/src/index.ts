@@ -4,38 +4,43 @@ import { deepValue } from "./utils/deepValue";
 import { search as wasmSearch, Searcher as WasmSearcher } from "./wafu";
 
 export interface WafuOptions<T = any> {
-  // Indicates whether comparisons should be case sensitive.
+  /** Indicates whether comparisons should be case sensitive. */
   caseSensitive: boolean;
-  // Whether to sort the result list by score.
+  /** Whether to sort the result list by score. */
   shouldSort: boolean;
-  // The get function to use when fetching an object's properties.
-  // The default will search nested paths *ie foo.bar.baz*. May return an array.
+  /**
+   * The get function to use when fetching an object's properties.
+   * The default will search nested paths *ie foo.bar.baz*. May return an array. */
   getFn: (obj: T, path: string) => string | string[];
-  // List of properties that will be searched. This also supports nested properties.
+  /** List of properties that will be searched. This also supports nested properties. */
   keys: Array<string | { name: string; weight: number }>;
-  // When true, the search algorithm will search individual words **and** the full string,
-  // computing the final score as a function of both. Note that when `tokenize` is `true`,
-  // the `threshold`, `distance`, and `location` are inconsequential for individual tokens.
+  /**
+   * When true, the search algorithm will search individual words **and** the full string,
+   * computing the final score as a function of both. Note that when `tokenize` is `true`,
+   * the `threshold`, `distance`, and `location` are inconsequential for individual tokens. */
   tokenize: boolean;
-  // Regex used to separate words when searching. Only applicable when `tokenize` is `true`.
+  /** Regex used to separate words when searching. Only applicable when `tokenize` is `true`. */
   tokenSeparator: Parameters<String["split"]>[0];
-  // When true, the result set will only include records that match all tokens. Will only work
-  // if `tokenize` is also true.
+  /**
+   * When true, the result set will only include records that match all tokens. Will only work
+   * if `tokenize` is also true. */
   matchAllTokens: boolean;
-  // Approximately where in the text is the pattern expected to be found?
+  /** Approximately where in the text is the pattern expected to be found? */
   location: number;
-  // Determines how close the match must be to location (specified above).
-  // An exact letter match which is 'distance' characters away from the fuzzy location`
-  // would score as a complete mismatch. A distance of '0' requires the match be at
-  // the exact location specified, a threshold of '1000' would require a perfect match
-  // to be within 800 characters of the fuzzy location to be found using a 0.8 threshold.
+  /**
+   * Determines how close the match must be to location (specified above).
+   * An exact letter match which is 'distance' characters away from the fuzzy location`
+   * would score as a complete mismatch. A distance of '0' requires the match be at
+   * the exact location specified, a threshold of '1000' would require a perfect match
+   * to be within 800 characters of the fuzzy location to be found using a 0.8 threshold. */
   distance: number;
-  // At what point does the match algorithm give up. A threshold of '0.0' requires a perfect match
-  // (of both letters and location), a threshold of '1.0' would match anything.
+  /**
+   * At what point does the match algorithm give up. A threshold of '0.0' requires a perfect match
+   * (of both letters and location), a threshold of '1.0' would match anything. */
   threshold: number;
-  // Include matched indicies in the output.
+  /** Include matched indicies in the output. */
   includeMatches: boolean;
-  // Minimum number of characters that must be matched before a result is considered a match
+  /** Minimum number of characters that must be matched before a result is considered a match */
   minMatchCharLength: number;
 }
 
@@ -71,7 +76,7 @@ export const defaultOptions: Readonly<WafuOptions> = {
   matchAllTokens: false
 };
 
-// TextEncoder isn't showing up, so this is just providing the type definition.
+/** TextEncoder isn't showing up, so this is just providing the type definition. */
 interface TextEncoder {
   readonly encoding: string;
   encode(input?: string): Uint8Array;
@@ -91,9 +96,11 @@ export class Wafu<T> {
   private options: WafuOptions<T>;
   private fields: Field[];
 
-  // This is the constructor parameter for rust's Searcher object serialized
-  // as json in utf-8. It saves _some_ of the repeated work of crossing the
-  // rust/js barrier.
+  /**
+   * This is the constructor parameter for rust's Searcher object serialized
+   * as json in utf-8. It saves _some_ of the repeated work of crossing the
+   * rust/js barrier.
+   */
   private cachedSearcherInput: Uint8Array;
 
   constructor(collection: T[], opts?: Partial<WafuOptions<T>>) {
@@ -119,9 +126,11 @@ export class Wafu<T> {
   }
 }
 
-// Similar to the base Wafu, but owns an actual rust Searcher. Unsafe because
-// users can potentially leak memory if they don't free, so I'm keeping this
-// private for now.
+/**
+ * Similar to the base Wafu, but owns an actual rust Searcher. Unsafe because
+ * users can potentially leak memory if they don't free, so I'm keeping this
+ * private for now.
+ */
 export class WafuUnsafe<T> {
   private collection: ReadonlyArray<T>;
   private options: WafuOptions<T>;
@@ -158,34 +167,44 @@ export class WafuUnsafe<T> {
   }
 }
 
-// Field represents a searchable field inside of an item in the collection.
-// Wafu can be fed objects with a list of keys that point into the objects, so
-// think of Field as the normalized/flattened form of that.
+/**
+ * Field represents a searchable field inside of an item in the collection.
+ * Wafu can be fed objects with a list of keys that point into the objects, so
+ * think of Field as the normalized/flattened form of that.
+ */
 interface Field {
-  // The original text before potentially converting to lowercase. We need to
-  // keep this around for the matched indicies output.
+  /**
+   * The original text before potentially converting to lowercase. We need to
+   * keep this around for the matched indicies output.
+   */
   originalText: string;
-  // The text that will actually be searched.
+  /** The text that will actually be searched. */
   text: string;
-  // The "tokens" of the text.
+  /** The "tokens" of the text. */
   tokens?: string[];
-  // The index of the item in the original collection that this field corresponds to.
+  /** The index of the item in the original collection that this field corresponds to. */
   itemIndex: number;
-  // The index in the keys array that this field corresponds to. Note that
-  // this will be undefined if the source collection is string[].
+  /**
+   * The index in the keys array that this field corresponds to. Note that
+   * this will be undefined if the source collection is string[].
+   */
   keyIndex?: number;
-  // When getFn returns an array, this corresponds to the array index.
+  /** When getFn returns an array, this corresponds to the array index. */
   arrayIndex?: number;
-  // Actual string that was passed as the key.
+  /** Actual string that was passed as the key. */
   key?: string;
-  // Weight that should be given to this field. This is derived from key, but
-  // denormalized here.
+  /**
+   * Weight that should be given to this field. This is derived from key, but
+   * denormalized here.
+   */
   weight: number;
 }
 
-// Takes the original collection and the passed options and makes a
-// normalized/flat version of each searchable field. This is an internal
-// pre-processing step that makes passing to rust a little more simple.
+/**
+ * Takes the original collection and the passed options and makes a
+ * normalized/flat version of each searchable field. This is an internal
+ * pre-processing step that makes passing to rust a little more simple.
+ */
 function buildFields<T>(
   collection: ReadonlyArray<T>,
   opts: WafuOptions<T>
@@ -327,7 +346,7 @@ function buildRustFields(fields: Field[]): RustField[] {
   }));
 }
 
-// Passed in to create the Searcher.
+/** Passed in to create the Searcher. */
 interface RustSearcherInput {
   fields: RustField[];
   options: RustOptions;
@@ -392,8 +411,10 @@ interface RustMatchedIndices {
   indices: Array<[number, number]>;
 }
 
-// Takes the results from rust and combines them with the original collection
-// and fields to make the expected output.
+/**
+ * Takes the results from rust and combines them with the original collection
+ * and fields to make the expected output.
+ */
 function buildJSResult<T>(
   collection: ReadonlyArray<T>,
   fields: Field[],

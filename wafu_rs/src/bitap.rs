@@ -35,21 +35,21 @@ pub struct Searcher {
 
 impl Searcher {
     pub fn new(
-        pattern: &Vec<char>,
+        pattern: &[char],
         expected_location: usize,
         distance: usize,
         threshold: f64,
     ) -> Searcher {
         let pattern = UnicodePattern::new(&reverse_string(pattern)).unwrap();
-        return Searcher {
+        Searcher {
             pattern,
             expected_location,
             distance,
             threshold,
-        };
+        }
     }
 
-    pub fn search(&self, text: &Vec<char>) -> SearchResult {
+    pub fn search(&self, text: &[char]) -> SearchResult {
         fuse_bitap_search(
             text,
             &self.pattern,
@@ -62,22 +62,26 @@ impl Searcher {
     // Returns true if the passed text is definitely not a match. Checks
     // whether any of the characters in the pattern appear in the source text.
     // Kind of a fast pre-check before we do the full bitap search.
-    pub fn definitely_does_not_match(&self, text: &Vec<char>) -> bool {
+    pub fn definitely_does_not_match(&self, text: &[char]) -> bool {
         for c in text {
             if self.pattern.contains_char(*c) {
-                return false
+                return false;
             }
         }
-        return true
+        true
     }
 
-    pub fn get_matched_indices(&self, text: &Vec<char>, min_match_char_length: usize) -> Vec<(usize, usize)> {
-        return matched_indices(text, &self.pattern, min_match_char_length);
+    pub fn get_matched_indices(
+        &self,
+        text: &[char],
+        min_match_char_length: usize,
+    ) -> Vec<(usize, usize)> {
+        matched_indices(text, &self.pattern, min_match_char_length)
     }
 }
 
 fn fuse_bitap_search(
-    text: &Vec<char>,
+    text: &[char],
     pattern: &UnicodePattern,
     expected_location: usize,
     distance: usize,
@@ -129,14 +133,14 @@ fn fuse_bitap_search(
             break;
         }
     }
-    return SearchResult {
-        is_match: is_match,
+    SearchResult {
+        is_match,
         score: if best_score == 0.0 { 0.001 } else { best_score },
-    };
+    }
 }
 
 // This is a hacky error prone way to reverse a string but... whatever.
-pub fn reverse_string(s: &Vec<char>) -> Vec<char> {
+pub fn reverse_string(s: &[char]) -> Vec<char> {
     s.iter().rev().cloned().collect()
 }
 
@@ -160,8 +164,8 @@ impl UnicodePattern {
     /// Compiles the search pattern. An error will be returned if the pattern
     /// is empty, or if the pattern is longer than the system word size minus
     /// one.
-    pub fn new(pattern: &Vec<char>) -> Result<UnicodePattern, &'static str> {
-        let mut length = pattern.len();
+    pub fn new(pattern: &[char]) -> Result<UnicodePattern, &'static str> {
+        let length = pattern.len();
         if length == 0 {
             return Err("pattern must not be empty");
         }
@@ -175,11 +179,11 @@ impl UnicodePattern {
                     *mask &= !(1usize << i);
                 }
                 None => {
-                    masks.insert(*c, !0usize & !(1usize << i));
+                    masks.insert(*c, !(1usize << i));
                 }
             };
         }
-        return Ok(UnicodePattern { length, masks });
+        Ok(UnicodePattern { length, masks })
     }
 
     #[inline]
@@ -192,10 +196,10 @@ impl UnicodePattern {
 
     #[inline]
     pub fn contains_char(&self, c: char) -> bool {
-        return self.masks.contains_key(&c);
+        self.masks.contains_key(&c)
     }
 
-    pub fn search<'a>(&'a self, text: &'a Vec<char>, k: usize) -> impl Iterator<Item = Match> + 'a {
+    pub fn search<'a>(&'a self, text: &'a [char], k: usize) -> impl Iterator<Item = Match> + 'a {
         let mut r = vec![!1usize; k + 1];
 
         // Initialize the arrays so that each error level starts with the
@@ -205,7 +209,7 @@ impl UnicodePattern {
         for (k, r) in r.iter_mut().enumerate().skip(1) {
             *r <<= k;
         }
-        return text.iter().enumerate().filter_map(move |(i, c)| {
+        text.iter().enumerate().filter_map(move |(i, c)| {
             let mask = self.get_mask(*c);
             let mut prev_parent = r[0];
             r[0] |= mask;
@@ -227,8 +231,8 @@ impl UnicodePattern {
                     });
                 }
             }
-            return None;
-        });
+            None
+        })
     }
 }
 
@@ -254,7 +258,7 @@ fn calculate_score(
 }
 
 pub fn matched_indices(
-    text: &Vec<char>,
+    text: &[char],
     pattern: &UnicodePattern,
     min_match_char_length: usize,
 ) -> Vec<(usize, usize)> {
@@ -285,7 +289,7 @@ pub fn matched_indices(
             results.push((start_index, end_index));
         }
     }
-    return results;
+    results
 }
 
 #[cfg(test)]
